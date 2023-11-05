@@ -6,26 +6,25 @@ import mysql.connector
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
-MAX_THREADS = 4
+MAX_THREADS = 3
 
 def create_table_if_not_exists(cursor, table_name):
     create_table_query = f"""
     CREATE TABLE IF NOT EXISTS `{table_name}` (
-        mail VARCHAR(255),
-        password VARCHAR(255),
-        domain VARCHAR(255)
-    )
+        mail VARCHAR(80),
+        password VARCHAR(60),
+        domain VARCHAR(30),
+        UNIQUE KEY unique_constraint (mail, password, domain)
+    ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED
     """
     cursor.execute(create_table_query)
 
-def create_processed_files_table_if_not_exists(local_db):
-    cursor = local_db.cursor()
+def create_processed_files_table_if_not_exists(cursor):
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS processed_files (
         file_path TEXT
     )
     """)
-    local_db.commit()
 
 def is_file_processed(file_path, local_db):
     cursor = local_db.cursor()
@@ -43,7 +42,6 @@ def extract_info_from_file(file_path):
                 database="XXX",
                 charset="utf8mb4"
             ) as db_connection:
-                create_processed_files_table_if_not_exists(local_db)
 
                 with open(file_path, 'r', encoding='utf-8') as file:
                     content = file.read()
@@ -70,21 +68,21 @@ def extract_info_from_file(file_path):
                                 if commit_count >= 200 or len(matches) <= 200:
                                     db_connection.commit()  # Faire un commit tous les 200 insertions ou à la fin du fichier
                                     commit_count = 0  # Réinitialiser le compteur
-                                break  # Sortir de la boucle en cas de succès
+                                break
                             except mysql.connector.Error as err:
                                 if "Deadlock" in str(err):
                                     print(f"Deadlock détecté, réessai de la requête...")
-                                    continue  # Réessayez en cas de deadlock
+                                    continue
                                 elif "Table 'test." + table_name + "' doesn't exist" in str(err):
                                     print(f"La table {table_name} n'existe pas, en train de la créer...")
                                     create_table_if_not_exists(cursor, table_name)
-                                    continue  # Réessayez après avoir créé la table
+                                    continue
                                 else:
                                     print(f"Erreur lors de l'insertion : {err}")
-                                    break  # Sortir de la boucle en cas d'autres erreurs
+                                    break
+
                     if commit_count > 0:
                         db_connection.commit()  # Commit des insertions restantes
-                    # Marquer le fichier comme traité dans la base de données SQLite
                     local_db.execute("INSERT INTO processed_files (file_path) VALUES (?)", (file_path,))
                     local_db.commit()
                 else:
@@ -92,7 +90,6 @@ def extract_info_from_file(file_path):
     except mysql.connector.Error as err:
         print(f"Erreur de connexion à la base de données : {err}")
     except Exception as e:
-        # Gérer l'exception ici, par exemple, afficher un message d'erreur
         print(f"Erreur lors du traitement du fichier {file_path}: {str(e)}")
 
 def analyze_files_in_directory(directory):
@@ -101,7 +98,6 @@ def analyze_files_in_directory(directory):
             for file in files:
                 if file.endswith('.txt'):
                     file_path = os.path.join(root, file)
-                    # Vérifiez si le fichier a déjà été traité
                     if not is_file_processed(file_path, sqlite3.connect('local_db.sqlite')):
                         executor.submit(extract_info_from_file, file_path)
 
@@ -115,4 +111,6 @@ if __name__ == "__main__":
         print(f"Le répertoire '{directory_to_analyze}' n'existe pas.")
         sys.exit(1)
 
+    local_db = sqlite3.connect('local_db.sqlite')
+    create_processed_files_table_if_not_exists(local_db)
     analyze_files_in_directory(directory_to_analyze)
