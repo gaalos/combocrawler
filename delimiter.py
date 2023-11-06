@@ -38,9 +38,9 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
 
     if matches:
         db_connection = mysql.connector.connect(
-            host="192.168.1.24",
-            user="root",
-            password="Poutiti1",
+            host="XXXXX",
+            user="XXXX",
+            password="XXXX",
             database="test",
             charset="utf8mb4"
         )
