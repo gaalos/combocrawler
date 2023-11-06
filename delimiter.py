@@ -6,7 +6,7 @@ import mysql.connector
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
-MAX_THREADS = 2  # Vous pouvez ajuster ce nombre en fonction de vos ressources
+MAX_THREADS = 1  # Vous pouvez ajuster ce nombre en fonction de vos ressources
 CHUNK_SIZE = 250000000  # Taille du morceau de fichier à lire (en octets)
 
 def create_table_if_not_exists(cursor, table_name):
@@ -33,15 +33,15 @@ def is_file_processed(file_path, local_db):
     return cursor.fetchone() is not None
 
 def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
-    pattern = r'([^:;|,\n]+)([:;|,])([^:\n]+)'
+    pattern = r'([^:;|,\n]+)[:;|,]+(.+)'
     matches = re.findall(pattern, chunk)
 
     if matches:
         db_connection = mysql.connector.connect(
-            host="XXXXX",
-            user="XXXX",
-            password="XXXX",
-            database="test",
+            host="XXX",
+            user="XXX",
+            password="XXX",
+            database="XXX",
             charset="utf8mb4"
         )
         cursor = db_connection.cursor(buffered=True)
@@ -50,9 +50,9 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
 
         # Créez une barre de progression ici
         progress_bar = tqdm(total=len(matches), unit=" line", desc=f"Traitement de {file_path}")
-
+        print(matches)
         for match in matches:
-            mail, delimiter, password = match
+            mail, password = match
             mail = mail.strip()
             password = password.strip()
             domain = mail.split('@')[1] if '@' in mail else ""
