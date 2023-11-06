@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 MAX_THREADS = 1  # Vous pouvez ajuster ce nombre en fonction de vos ressources
-CHUNK_SIZE = 250000000  # Taille du morceau de fichier à lire (en octets)
+CHUNK_SIZE = 150000000  # Taille du morceau de fichier à lire (en octets)
 
 def create_table_if_not_exists(cursor, table_name):
     create_table_query = f"""
@@ -50,7 +50,7 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
 
         # Créez une barre de progression ici
         progress_bar = tqdm(total=len(matches), unit=" line", desc=f"Traitement de {file_path}")
-   #     print(matches)
+        #print(matches)
         for match in matches:
             mail, password = match
             mail = mail.strip()
