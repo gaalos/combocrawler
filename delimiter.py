@@ -88,7 +88,7 @@ def process_file(file_path, local_db_path):
        # print(f"Le fichier {file_path} a déjà été traité. Ignoré.")
         return
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, 'r', encoding='utf-8',errors='ignore') as file:
             while True:
                 chunk = file.read(CHUNK_SIZE)
                 if not chunk:
