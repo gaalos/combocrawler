@@ -50,7 +50,7 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
 
         # Créez une barre de progression ici
         progress_bar = tqdm(total=len(matches), unit=" line", desc=f"Traitement de {file_path}")
-        print(matches)
+   #     print(matches)
         for match in matches:
             mail, password = match
             mail = mail.strip()
