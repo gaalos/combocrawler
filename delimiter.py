@@ -6,7 +6,7 @@ import mysql.connector
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
-MAX_THREADS = 4  # Vous pouvez ajuster ce nombre en fonction de vos ressources
+MAX_THREADS = 3  # Vous pouvez ajuster ce nombre en fonction de vos ressources
 CHUNK_SIZE = 150000000  # Taille du morceau de fichier à lire (en octets)
 
 def create_table_if_not_exists(cursor, table_name):
@@ -32,7 +32,7 @@ def is_file_processed(file_path, local_db):
     cursor.execute("SELECT file_path FROM processed_files WHERE file_path=?", (file_path,))
     return cursor.fetchone() is not None
 
-def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
+def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path, current_chunk, total_chunks):
     pattern = r'([^:;|,\n]+)[:;|,]+(.+)'
     matches = re.findall(pattern, chunk)
 
@@ -48,9 +48,15 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
         cursor.execute("START TRANSACTION")  # Début de la transaction
         batch_size = 5  # Nombre d'insertions à effectuer avant le commit
 
+        # Obtenir la taille du fichier
+        file_size = os.path.getsize(file_path)
+        file_chunked = file_size > CHUNK_SIZE
+
         # Créez une barre de progression ici
         progress_bar = tqdm(total=len(matches), unit=" line", desc=f"Traitement de {file_path}")
-        #print(matches)
+        if file_chunked:
+            progress_bar.set_description(f"Traitement de {file_path} (c {current_chunk}/{total_chunks})")
+
         variable_compteur = 0
         for match in matches:
             mail, password = match
@@ -90,7 +96,10 @@ def process_file(file_path, local_db_path):
        # print(f"Le fichier {file_path} a déjà été traité. Ignoré.")
         return
     try:
-        with open(file_path, 'r', encoding='utf-8',errors='ignore') as file:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+            file_size = os.path.getsize(file_path)
+            total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
+            current_chunk = 0
             while True:
                 chunk = file.read(CHUNK_SIZE)
                 if not chunk:
@@ -99,7 +108,8 @@ def process_file(file_path, local_db_path):
                         local_db.execute("INSERT INTO processed_files (file_path) VALUES (?)", (file_path,))
                         local_db.commit()
                     break
-                extract_info_from_chunk(chunk, None, local_db_path, file_path)
+                current_chunk += 1
+                extract_info_from_chunk(chunk, None, local_db_path, file_path, current_chunk, total_chunks)
     except Exception as e:
         print(f"Erreur lors de la lecture du fichier {file_path}: {str(e)}")
 
