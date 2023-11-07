@@ -6,7 +6,7 @@ import mysql.connector
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
-MAX_THREADS = 1  # Vous pouvez ajuster ce nombre en fonction de vos ressources
+MAX_THREADS = 4  # Vous pouvez ajuster ce nombre en fonction de vos ressources
 CHUNK_SIZE = 150000000  # Taille du morceau de fichier à lire (en octets)
 
 def create_table_if_not_exists(cursor, table_name):
@@ -46,11 +46,12 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
         )
         cursor = db_connection.cursor(buffered=True)
         cursor.execute("START TRANSACTION")  # Début de la transaction
-        batch_size = 200  # Nombre d'insertions à effectuer avant le commit
+        batch_size = 5  # Nombre d'insertions à effectuer avant le commit
 
         # Créez une barre de progression ici
         progress_bar = tqdm(total=len(matches), unit=" line", desc=f"Traitement de {file_path}")
         #print(matches)
+        variable_compteur = 0
         for match in matches:
             mail, password = match
             mail = mail.strip()
@@ -63,10 +64,10 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
                     query = f"INSERT IGNORE INTO `{table_name}` (mail, password, domain) VALUES (%s, %s, %s)"
                     data = (mail, password, domain)
                     cursor.execute(query, data)
-
-                    if cursor.rowcount >= batch_size:
-                        db_connection.commit()  # Commit lorsque le lot est complet
-
+                    variable_compteur += 1
+                    if variable_compteur >= batch_size:
+                       db_connection.commit()
+                       variable_compteur = 0
                     progress_bar.update(1)  # Mise à jour de la barre de progression
                     break
                 except mysql.connector.Error as err:
@@ -81,6 +82,7 @@ def extract_info_from_chunk(chunk, db_connection, local_db_path, file_path):
         db_connection.commit()  # Commit des insertions restantes
     else:
         print(f"Aucun délimiteur commun trouvé dans le fichier: {file_path}\n")
+    progress_bar.update(1)  # Mise à jour de la barre de progression
 
 def process_file(file_path, local_db_path):
     local_db = sqlite3.connect(local_db_path)
