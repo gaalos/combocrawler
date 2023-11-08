@@ -1,1 +1,3 @@
 intitle:"index of" ".env"
+intitle:"index of" "config.php.back" OR "config.php.old" OR "config.php.save"
+intitle:"index of" "wp-config.php.back" OR "wp-config.php.old" OR "wp-config.php.save"
